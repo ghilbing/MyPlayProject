@@ -6,6 +6,7 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.app.TaskStackBuilder;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
@@ -22,15 +23,19 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import java.io.IOException;
 
 import static android.app.Notification.PRIORITY_LOW;
+import static com.hilbing.myplayproject.App.CHANNEL_1_ID;
 
 public class PlayerService extends Service {
 
     MediaPlayer mediaPlayer = new MediaPlayer();
+
+    private NotificationManagerCompat notificationManagerCompat;
 
     private final IBinder mBinder = new MyBinder();
 
@@ -43,111 +48,7 @@ public class PlayerService extends Service {
     public PlayerService() {
     }
 
-  /*  @RequiresApi(api = Build.VERSION_CODES.O)
     @Override
-    public void onCreate(){
-        super.onCreate();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-            startMyOwnForeground();
-        else
-            showNotification();
-    }
-
-    public Notification getNotification() {
-        String channel;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-            channel = createChannel();
-        else {
-            channel = "";
-        }
-        NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(this, channel).setSmallIcon(android.R.drawable.ic_menu_mylocation).setContentTitle("snap map fake location");
-        Notification notification = mBuilder
-                .setPriority(PRIORITY_LOW)
-                .setCategory(Notification.CATEGORY_SERVICE)
-                .build();
-
-
-        return notification;
-    }
-
-    @NonNull
-    @TargetApi(26)
-    private synchronized String createChannel() {
-        NotificationManager mNotificationManager = (NotificationManager) this.getSystemService(Context.NOTIFICATION_SERVICE);
-
-        String name = "snap map fake location ";
-        int importance = NotificationManager.IMPORTANCE_LOW;
-
-        NotificationChannel mChannel = new NotificationChannel("snap map channel", name, importance);
-
-        mChannel.enableLights(true);
-        mChannel.setLightColor(Color.BLUE);
-        if (mNotificationManager != null) {
-            mNotificationManager.createNotificationChannel(mChannel);
-        } else {
-            stopSelf();
-        }
-        return "snap map channel";
-    }
-
-
-
-    @RequiresApi(api = Build.VERSION_CODES.O)
-    private void startMyOwnForeground(){
-        String NOTIFICATION_CHANNEL_ID = "com.hilbing.myplayproject";
-        String channelName = "My Background Service";
-        NotificationChannel chan = new NotificationChannel(NOTIFICATION_CHANNEL_ID, channelName, NotificationManager.IMPORTANCE_NONE);
-        chan.setLightColor(Color.BLUE);
-        chan.setLockscreenVisibility(Notification.VISIBILITY_PRIVATE);
-        NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        assert manager != null;
-        manager.createNotificationChannel(chan);
-
-        Intent notificationIntent = new Intent(this, MainActivity.class);
-        notificationIntent.setAction(Constants.ACTION.MAIN_ACTION);
-        //notificationIntent.setFlags((Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
-        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
-
-        Intent previousIntent = new Intent(this, PlayerService.class);
-        previousIntent.setAction(Constants.ACTION.PREV_ACTION);
-        PendingIntent prevPendingIntent = PendingIntent.getActivity(this, 0, previousIntent, 0);
-
-        Intent playIntent = new Intent(this, PlayerService.class);
-        playIntent.setAction(Constants.ACTION.PLAY_ACTION);
-        PendingIntent playPendingIntent = PendingIntent.getActivity(this, 0, playIntent, 0);
-
-        Intent nextIntent = new Intent(this, PlayerService.class);
-        nextIntent.setAction(Constants.ACTION.NEXT_ACTION);
-        PendingIntent nextPendingIntent = PendingIntent.getActivity(this, 0, nextIntent, 0);
-
-        Bitmap icon = BitmapFactory.decodeResource(getResources(), R.drawable.bell_icon);
-
-        Notification notification = new NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
-                .setContentTitle(getResources().getString(R.string.music_player))
-                .setTicker(getResources().getString(R.string.playing_music))
-                .setContentText(getResources().getString(R.string.my_song))
-                .setSmallIcon(R.drawable.bell_icon)
-                .setLargeIcon(Bitmap.createScaledBitmap(icon, 128, 128, false))
-                .setContentIntent(pendingIntent)
-                .setOngoing(true)
-                .addAction(android.R.drawable.ic_media_previous, "Previous", prevPendingIntent)
-                .addAction(android.R.drawable.ic_media_play, "Play", playPendingIntent)
-                .addAction(android.R.drawable.ic_media_next, "Next", nextPendingIntent)
-                .build();
-
-        startForeground(Constants.NOTIFICATION_ID.FOREGROUND_SERVICE, notification);
-
-     *//*   NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID);
-        Notification notification = notificationBuilder.setOngoing(true)
-                .setSmallIcon(R.drawable.bell_icon)
-                .setContentTitle("App is running in background")
-                .setPriority(NotificationManager.IMPORTANCE_MIN)
-                .setCategory(Notification.CATEGORY_SERVICE)
-                .build();
-        startForeground(2, notification); *//*
-    }
-*/
-  /*  @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if(intent.getStringExtra("url") != null)
             playStream(intent.getStringExtra("url"));
@@ -177,43 +78,55 @@ public class PlayerService extends Service {
 
     private void showNotification() {
 
+        notificationManagerCompat = NotificationManagerCompat.from(this);
+
         Intent notificationIntent = new Intent(this, MainActivity.class);
         notificationIntent.setAction(Constants.ACTION.MAIN_ACTION);
-        //notificationIntent.setFlags((Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
+        notificationIntent.setFlags((Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
 
-        Intent previousIntent = new Intent(this, MainActivity.class);
+        Intent previousIntent = new Intent(this, PlayerService.class);
         previousIntent.setAction(Constants.ACTION.PREV_ACTION);
         PendingIntent prevPendingIntent = PendingIntent.getActivity(this, 0, previousIntent, 0);
 
-        Intent playIntent = new Intent(this, MainActivity.class);
+        Intent playIntent = new Intent(this, PlayerService.class);
+       // TaskStackBuilder stackBuilder = TaskStackBuilder.create(this);
+       // stackBuilder.addNextIntent(playIntent);
         playIntent.setAction(Constants.ACTION.PLAY_ACTION);
-        PendingIntent playPendingIntent = PendingIntent.getActivity(this, 0, playIntent, 0);
+        Log.i("SERVICE", "PLAY");
+        PendingIntent playPendingIntent = PendingIntent.getBroadcast(this, 0, playIntent, 0);
+                //stackBuilder.getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT);
+                //PendingIntent.getActivity(this, 0, playIntent, 0);
 
-        Intent nextIntent = new Intent(this, MainActivity.class);
+        Intent nextIntent = new Intent(this, PlayerService.class);
         nextIntent.setAction(Constants.ACTION.NEXT_ACTION);
         PendingIntent nextPendingIntent = PendingIntent.getActivity(this, 0, nextIntent, 0);
 
         Bitmap icon = BitmapFactory.decodeResource(getResources(), R.drawable.bell_icon);
 
-        Notification notification = new NotificationCompat.Builder(this)
-                .setContentTitle(getResources().getString(R.string.music_player))
-                .setTicker(getResources().getString(R.string.playing_music))
-                .setContentText(getResources().getString(R.string.my_song))
+        int playPauseButtonId = android.R.drawable.ic_media_play;
+        if(mediaPlayer != null && mediaPlayer.isPlaying())
+            playPauseButtonId = android.R.drawable.ic_media_pause;
+
+        NotificationCompat.Builder notification = new NotificationCompat.Builder(getApplicationContext(), CHANNEL_1_ID);
+        notification.setAutoCancel(true)
+                .setDefaults(Notification.DEFAULT_ALL)
+                .setWhen(System.currentTimeMillis())
                 .setSmallIcon(R.drawable.bell_icon)
-                .setLargeIcon(Bitmap.createScaledBitmap(icon, 128, 128, false))
+                .setTicker("Channel 1")
+                .setPriority(Notification.PRIORITY_HIGH)
+                .setCategory(Notification.CATEGORY_MESSAGE)
                 .setContentIntent(pendingIntent)
                 .setOngoing(true)
+                .setContentTitle(getResources().getString(R.string.music_player))
+                .setContentText(getResources().getString(R.string.my_song))
                 .addAction(android.R.drawable.ic_media_previous, "Previous", prevPendingIntent)
-                .addAction(android.R.drawable.ic_media_play, "Play", playPendingIntent)
-                .addAction(android.R.drawable.ic_media_next, "Next", nextPendingIntent)
-                .build();
+                .addAction(playPauseButtonId, "Play", playPendingIntent)
+                .addAction(android.R.drawable.ic_media_next, "Next", nextPendingIntent);
 
-        startForeground(Constants.NOTIFICATION_ID.FOREGROUND_SERVICE, notification);
+        notificationManagerCompat.notify(1, notification.build());
 
-
-
-    }*/
+    }
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -256,6 +169,7 @@ public class PlayerService extends Service {
         try{
             mediaPlayer.pause();
             flipPlayPauseButton(false);
+
         }catch (Exception e){
             Log.d("EXCEPTION", "failed to pause mediaplayer");
         }
@@ -263,8 +177,10 @@ public class PlayerService extends Service {
 
     public void playPlayer(){
         try{
-            mediaPlayer.start();
+            //mediaPlayer.start();
+            getAudioFocusAndPlay();
             flipPlayPauseButton(true);
+           
         }catch (Exception e){
             Log.d("EXCEPTION", "failed to start mediaplayer");
         }
@@ -280,13 +196,33 @@ public class PlayerService extends Service {
     }
 
     public void togglePlayer(){
+        Log.i("PLAYER", "ENTRO");
         try {
             if(mediaPlayer.isPlaying())
                 pausePlayer();
             else
                 playPlayer();
         }catch (Exception e){
-            Log.d("EXCEPTION" , "failed to toglle mediaplayer");
+            Log.d("EXCEPTION" , "failed to toggle mediaplayer");
         }
     }
+
+    //Audio focus section
+    private AudioManager am;
+    public void getAudioFocusAndPlay(){
+        am = (AudioManager) this.getBaseContext().getSystemService(Context.AUDIO_SERVICE);
+        //request audio focus
+        int result = am.requestAudioFocus(afChangeListener, AudioManager.STREAM_MUSIC,  AudioManager.AUDIOFOCUS_GAIN);
+
+        if(result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED){
+            mediaPlayer.start();
+        }
+    }
+
+    AudioManager.OnAudioFocusChangeListener afChangeListener = new AudioManager.OnAudioFocusChangeListener() {
+        @Override
+        public void onAudioFocusChange(int i) {
+
+        }
+    };
 }
